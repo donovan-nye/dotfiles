@@ -1,0 +1,282 @@
+" Plugins
+call plug#begin('~/.local/share/nvim/plugged')
+
+Plug 'neovim/nvim-lspconfig'
+Plug 'glepnir/lspsaga.nvim'
+
+Plug 'rakr/vim-one'
+Plug 'tomtom/tcomment_vim'
+Plug 'vim-airline/vim-airline'
+Plug 'yuttie/comfortable-motion.vim'
+Plug 'tpope/vim-surround'
+
+" Install nvim-cmp
+Plug 'hrsh7th/nvim-cmp'
+" Install the buffer completion source
+Plug 'hrsh7th/cmp-buffer'
+Plug 'hrsh7th/cmp-emoji'
+Plug 'hrsh7th/cmp-path'
+Plug 'hrsh7th/cmp-vsnip'
+Plug 'hrsh7th/cmp-nvim-lsp'
+
+
+" Install snippet engine (This example installs [hrsh7th/vim-vsnip](https://github.com/hrsh7th/vim-vsnip))
+Plug 'hrsh7th/vim-vsnip'
+Plug 'hrsh7th/vim-vsnip-integ'
+Plug 'rafamadriz/friendly-snippets'
+
+
+Plug 'nvim-lua/plenary.nvim'
+Plug 'nvim-telescope/telescope.nvim'
+
+Plug 'airblade/vim-rooter'
+
+Plug 'leafgarland/typescript-vim'
+
+Plug 'kyazdani42/nvim-web-devicons'
+Plug 'folke/trouble.nvim'
+
+call plug#end()
+
+if empty(glob('~/.local/share/nvim/site/autoload/plug.vim'))
+  silent !curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs
+    \ https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+  autocmd VimEnter * PlugInstall --sync | source $MYVIMRC
+endif
+
+" leader
+let g:mapleader=' '
+:nnoremap <leader>a :echo("\<leader\> works! It is set to '<leader>'")<CR>
+
+" open files from the buffers cwd (also can be used with CtrlP!)
+cabbr <expr> %% expand('%:p:h')
+
+" a word processor like vim experience
+" https://www.maketecheasier.com/turn-vim-word-processor/
+func! WordProcessor()
+  map k gk
+  map j gj
+
+  setlocal formatoptions=1
+  setlocal noexpandtab
+  setlocal wrap
+  setlocal linebreak
+
+  setlocal columns=60
+
+  setlocal spell spelllang=en_us
+endfu
+
+com! WP call WordProcessor()
+
+" Rooter markers
+let g:rooter_patterns = ['.git', 'package.json', 'CMakeLists.txt', 'go.mod', 'pubspec.yaml', 'build.sbt']
+
+" vsnip settings
+" Expand
+imap <expr> <C-j>   vsnip#expandable()  ? '<Plug>(vsnip-expand)'         : '<C-j>'
+smap <expr> <C-j>   vsnip#expandable()  ? '<Plug>(vsnip-expand)'         : '<C-j>'
+
+" Expand or jump
+imap <expr> <C-l>   vsnip#available(1)  ? '<Plug>(vsnip-expand-or-jump)' : '<C-l>'
+smap <expr> <C-l>   vsnip#available(1)  ? '<Plug>(vsnip-expand-or-jump)' : '<C-l>'
+
+" Jump forward or backward
+imap <expr> <Tab>   vsnip#jumpable(1)   ? '<Plug>(vsnip-jump-next)'      : '<Tab>'
+smap <expr> <Tab>   vsnip#jumpable(1)   ? '<Plug>(vsnip-jump-next)'      : '<Tab>'
+imap <expr> <S-Tab> vsnip#jumpable(-1)  ? '<Plug>(vsnip-jump-prev)'      : '<S-Tab>'
+smap <expr> <S-Tab> vsnip#jumpable(-1)  ? '<Plug>(vsnip-jump-prev)'      : '<S-Tab>'
+
+" Select or cut text to use as $TM_SELECTED_TEXT in the next snippet.
+" See https://github.com/hrsh7th/vim-vsnip/pull/50
+nmap        s   <Plug>(vsnip-select-text)
+xmap        s   <Plug>(vsnip-select-text)
+nmap        S   <Plug>(vsnip-cut-text)
+xmap        S   <Plug>(vsnip-cut-text)
+
+
+" LaunguageServers / Configs
+
+lua <<EOF
+
+  vim.g.mapleader = ' '
+  
+  local api = vim.api
+  local cmd = vim.cmd
+
+  local function map(mode, lhs, rhs, opts)
+    local options = { noremap = true }
+    if opts then
+      options = vim.tbl_extend("force", options, opts)
+    end
+    api.nvim_set_keymap(mode, lhs, rhs, options)
+  end
+
+
+  require("telescope").setup{}
+  require("trouble").setup{}
+
+  local cmp = require'cmp'
+
+  cmp.setup({
+    snippet = {
+      expand = function(args)
+        vim.fn["vsnip#anonymous"](args.body)
+      end,
+    },
+    mapping = {
+      ['<C-y>'] = cmp.mapping.confirm({ select = true }),
+    },
+    sources = {
+      { name = 'nvim_lsp' },
+      { name = 'vsnip' },
+      { name = 'path' },
+      { name = 'emoji' },
+    }
+  })
+
+  vim.opt_global.completeopt = { "menuone", "noinsert", "noselect" }
+  -- "F" = don't show file info and "c" is be silent on commands
+  vim.opt_global.shortmess:remove("F"):append("c")
+
+  lspconfig = require'lspconfig'
+
+  local on_attach = function(client, bufnr)
+    local function buf_set_keymap(...) vim.api.nvim_buf_set_keymap(bufnr, ...) end
+    local function buf_set_option(...) vim.api.nvim_buf_set_option(bufnr, ...) end
+
+    -- Mappings.
+    local opts = { noremap=true, silent=true }
+    buf_set_keymap('n', '<leader>A', [[<cmd>echo("\<leader\> works in lua!")<CR>]], opts) 
+
+    buf_set_keymap('n', 'gD', '<cmd>lua vim.lsp.buf.definition()<CR>', opts)
+    buf_set_keymap('n', 'K', '<cmd>lua vim.lsp.buf.hover()<CR>', opts)
+    buf_set_keymap('n', 'gi', '<cmd>lua vim.lsp.buf.implementation()<CR>', opts)
+    buf_set_keymap('n', 'gr', '<cmd>lua vim.lsp.buf.references()<CR>', opts)
+    buf_set_keymap("n", "gds", "<cmd>lua vim.lsp.buf.document_symbol()<CR>", opts)
+    buf_set_keymap("n", "gws", "<cmd>lua vim.lsp.buf.workspace_symbol()<CR>", opts)
+
+    buf_set_keymap('n', '<leader>cl', [[<cmd>lua vim.lsp.codelens.run()<CR>]], opts)
+    buf_set_keymap("n", "<leader>sh", [[<cmd>lua vim.lsp.buf.signature_help()<CR>]], opts)
+    buf_set_keymap("n", "<leader>rn", "<cmd>lua vim.lsp.buf.rename()<CR>", opts)
+    buf_set_keymap("n", "<leader>f", "<cmd>lua vim.lsp.buf.formatting()<CR>", opts)
+    buf_set_keymap("n", "<leader>ca", "<cmd>lua vim.lsp.buf.code_action()<CR>", opts)
+    buf_set_keymap("n", "<leader>ws", '<cmd>lua require"metals".hover_worksheet()<CR>', opts)
+    buf_set_keymap("n", "<leader>aa", [[<cmd>lua vim.diagnostic.setqflist()<CR>]]) -- all workspace diagnostics
+    buf_set_keymap("n", "<leader>ae", [[<cmd>lua vim.diagnostic.setqflist({severity = "E"})<CR>]]) -- all workspace errors
+    buf_set_keymap("n", "<leader>aw", [[<cmd>lua vim.diagnostic.setqflist({severity = "W"})<CR>]]) -- all workspace warnings
+    buf_set_keymap("n", "<leader>d", "<cmd>lua vim.diagnostic.setloclist()<CR>") -- buffer diagnostics only
+    buf_set_keymap("n", "[c", "<cmd>lua vim.diagnostic.goto_prev { wrap = false }<CR>", opts)
+    buf_set_keymap("n", "]c", "<cmd>lua vim.diagnostic.goto_next { wrap = false }<CR>", opts)
+
+    -- Example mappings for usage with nvim-dap. If you don't use that, you can
+    -- skip these
+    buf_set_keymap("n", "<leader>dc", [[<cmd>lua require"dap".continue()<CR>]], opts)
+    buf_set_keymap("n", "<leader>dr", [[<cmd>lua require"dap".repl.toggle()<CR>]], opts)
+    buf_set_keymap("n", "<leader>dK", [[<cmd>lua require"dap.ui.widgets".hover()<CR>]], opts)
+    buf_set_keymap("n", "<leader>dt", [[<cmd>lua require"dap".toggle_breakpoint()<CR>]], opts)
+    buf_set_keymap("n", "<leader>dso", [[<cmd>lua require"dap".step_over()<CR>]], opts)
+    buf_set_keymap("n", "<leader>dsi", [[<cmd>lua require"dap".step_into()<CR>]], opts)
+    buf_set_keymap("n", "<leader>dl", [[<cmd>lua require"dap".run_last()<CR>]], opts)
+
+    -- Here Comes Trouble
+    buf_set_keymap("n", "<leader>tt", "<cmd>TroubleToggle<CR>", opts)
+    buf_set_keymap("n", "<leader>xw", "<cmd>TroubleToggle workspace_diagnostics<CR>", opts)
+    buf_set_keymap("n", "<leader>xd", "<cmd>TroubleToggle document_diagnostics<CR>", opts)
+    buf_set_keymap("n", "<leader>xl", "<cmd>TroubleToggle loclist<CR>", opts)
+    buf_set_keymap("n", "<leader>xq", "<cmd>TroubleToggle quickfix<CR>", opts)
+    buf_set_keymap("n", "gR", "<cmd>TroubleToggle lsp_references<CR>", opts)
+
+    -- Set some keybinds conditional on server capabilities
+    if client.resolved_capabilities.document_formatting then
+      buf_set_keymap("n", "ff", "<cmd>lua vim.lsp.buf.formatting()<CR>", opts)
+    elseif client.resolved_capabilities.document_range_formatting then
+      buf_set_keymap("n", "ff", "<cmd>lua vim.lsp.buf.range_formatting()<CR>", opts)
+    end
+
+    -- Set autocommands conditional on server_capabilities
+    if client.resolved_capabilities.document_highlight then
+      vim.api.nvim_exec([[
+        hi LspReferenceRead cterm=bold ctermbg=DarkMagenta guibg=LightYellow
+        hi LspReferenceText cterm=bold ctermbg=DarkMagenta guibg=LightYellow
+        hi LspReferenceWrite cterm=bold ctermbg=DarkMagenta guibg=LightYellow
+        augroup lsp_document_highlight
+          autocmd! * <buffer>
+          autocmd CursorHold <buffer> lua vim.lsp.buf.document_highlight()
+          autocmd CursorMoved <buffer> lua vim.lsp.buf.clear_references()
+        augroup END
+      ]], false)
+    end
+  end
+
+  local capabilities = vim.lsp.protocol.make_client_capabilities()
+  capabilities = require('cmp_nvim_lsp').update_capabilities(capabilities)
+  capabilities.textDocument.completion.completionItem.snippetSupport = true
+
+
+  lspconfig.tsserver.setup{
+    capabilities = capabilities,
+    on_attach = on_attach,
+  }
+
+  lspconfig.gopls.setup{
+    cmd = {'gopls'},
+    -- for postfix snippets and analyzers
+    capabilities = capabilities,
+        settings = {
+          gopls = {
+            experimentalPostfixCompletions = true,
+            analyses = {
+              unusedparams = true,
+              shadow = true,
+           },
+           staticcheck = true,
+          },
+        },
+    on_attach = on_attach,
+  }
+
+  lspconfig.clangd.setup{
+    capabilities = capabilities,
+    on_attach = on_attach,
+  }
+
+  local metals_config = require("metals").bare_config()
+
+  metals_config.settings = {
+    showImplicitArguments = true,
+    excludedPackages = { "akka.actor.typed.javadsl", "com.github.swagger.javadsl" },
+  }
+
+  -- READ THIS
+  -- I highly recommend setting statusBarProvider to true, however if you do,
+  -- you have to have a setting to display this in your statusline or else
+  -- you_ll not see any messages from metals. There is more info in the help
+  -- docs about this
+
+  metals_config.init_options.statusBarProvider = "on"
+
+-- Example if you are using cmp how to make sure the correct capabilities for snippets are set
+local capabilities = vim.lsp.protocol.make_client_capabilities()
+metals_config.capabilities = require("cmp_nvim_lsp").update_capabilities(capabilities)
+
+EOF
+
+set background=dark
+let g:one_allow_italics = 1
+colorscheme one
+set termguicolors
+syntax on
+
+filetype on
+filetype plugin on
+filetype indent on
+
+
+set number
+set relativenumber
+set tabstop=2
+set shiftwidth=2
+set expandtab
+
+

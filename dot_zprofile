@@ -1,0 +1,4 @@
+# Add .NET Core SDK tools
+export PATH="$PATH:/Users/nye/.dotnet/tools"
+
+alias ls=lsd
